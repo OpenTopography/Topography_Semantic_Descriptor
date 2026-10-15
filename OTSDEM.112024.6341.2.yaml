@@ -1,0 +1,97 @@
+# semantic/OTSDEM.112024.6341.2.yaml
+schema_version: 1
+dataset:
+  id: OTSDEM.112024.6341.2
+  title: "Lidar Survey of the McKinley Mine, NM 2023"
+  description: >
+    Airborne lidar-derived elevation rasters over the McKinley surface coal
+    mine, New Mexico. Funded to support mine reclamation and regulatory work.
+  synonyms: [McKinley Mine DEM, McKinley lidar, NM23_McKinley]
+  related_products:
+    point_cloud: OTLAS.112024.6341.2
+    metadata_record: OT.112024.6341.2
+  provenance:
+    platform: airborne lidar
+    collector: Surdex
+    funder: OSMRE (U.S. DOI)
+    survey_date: 2023-10-17
+    license: CC BY 4.0
+    citation_required: true
+    accuracy: TODO   # vertical RMSE / QA level not on the portal page
+    point_density: TODO
+
+spatial:
+  horizontal_crs: EPSG:6341      # NAD83(2011) / UTM 12N
+  vertical_crs: EPSG:5703        # NAVD88
+  units: meter
+  area_km2: 108
+  bbox: TODO                     # add footprint from the metadata record
+
+products:
+  dtm:
+    description: "Bare-earth digital terrain model (ground only)."
+    synonyms: [DEM, bare earth, ground surface, terrain model]
+    resolution_m: 0.3
+    not_for: [canopy height, structure height]
+  dsm:
+    description: "Digital surface model (first return: vegetation, structures, equipment)."
+    synonyms: [surface model, first-return surface]
+    resolution_m: 0.3
+    not_for: [terrain slope on vegetated ground]
+  dsm_intensity:
+    description: "Lidar return intensity raster aligned to the DSM."
+    note: "Relative values, not calibrated reflectance."
+  orthophoto:
+    resolution_m: 0.10
+    note: "Not available in Arc ASCII Grid output."
+  derived_on_request:
+    types: [hillshade, color_relief, slope, aspect, roughness]
+    requires: [dtm or dsm]
+  formats: [GeoTIFF, Arc ASCII Grid, IMG]
+
+access:
+  portal: https://portal.opentopography.org/raster?opentopoID=OTSDEM.112024.6341.2
+  bulk_s3:
+    endpoint: https://opentopography.s3.sdsc.edu
+    bucket_path: s3://raster/NM23_McKinley/
+    auth: none   # aws --no-sign-request; portal notes sign-in for raster bulk download
+  max_selection_note: "Users select a bounding box in EPSG:6341 coordinates."
+
+relationships:
+  - {from: dtm, to: dsm, type: same_grid, note: "Difference = above-ground height"}
+  - {from: dtm, to: point_cloud, type: derived_from}
+
+metrics:
+  mean_slope_deg:
+    description: "Mean slope over an AOI, computed from dtm."
+    inputs: {aoi: bbox_or_polygon_in_EPSG:6341}
+    output: {units: degrees}
+    tool: run_zonal_stat
+  elevation_range_m:
+    description: "Min/max elevation over an AOI from dtm."
+    output: {units: meters, datum: NAVD88}
+  volume_between_surfaces_m3:
+    description: "Volume of material between two surfaces over an AOI."
+    inputs: {aoi: polygon, surface_a: product, surface_b: product_or_survey}
+    preconditions:
+      - same_vertical_crs
+      - same_horizontal_crs
+      - aoi_within_coverage
+    note: "Comparing dtm against a second survey (change detection) requires that survey be registered in the catalog."
+
+caveats:
+  - "Mine surfaces change constantly. Results describe 2023-10-17 conditions only."
+  - "Selection coordinates must be in EPSG:6341, not lat/lon."
+  - "Large AOIs at 0.3 m produce very large rasters; prefer windowed reads or zonal statistics."
+
+verified_queries:
+  - question: "What are the highest and lowest elevations inside this polygon?"
+    tool_call: {tool: run_zonal_stat, product: dtm, stat: [min, max], aoi: "<polygon>"}
+    expected: {units: meters, datum: NAVD88}
+    test_aoi: TODO
+    expected_values: TODO
+  - question: "How tall are the stockpiles in this area?"
+    tool_call: {tool: raster_difference, minuend: dsm, subtrahend: dtm, aoi: "<polygon>"}
+    note: "Uses DSM minus DTM, not DTM alone."
+  - question: "Has this pit expanded since last year?"
+    expected_behavior: "Report that only one survey (2023-10-17) is available; do not answer."
