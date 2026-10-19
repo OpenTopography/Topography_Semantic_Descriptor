@@ -17,8 +17,8 @@ dataset:
     survey_date: 2023-10-17
     license: CC BY 4.0
     citation_required: true
-    accuracy: TODO   # vertical RMSE / QA level not on the portal page
-    point_density: TODO
+    accuracy: 0.043   # vertical RMSE / QA level not on the portal page
+    point_density: 46.15
 
 spatial:
   horizontal_crs: EPSG:6341      # NAD83(2011) / UTM 12N
